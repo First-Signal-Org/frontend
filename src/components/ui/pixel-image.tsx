@@ -61,11 +61,19 @@ export const PixelImage = ({
   }, [customGrid, grid]);
 
   useEffect(() => {
-    setIsVisible(true);
+    // Small delay to ensure DOM is ready
+    const visibilityTimeout = setTimeout(() => {
+      setIsVisible(true);
+    }, 100);
+    
     const colorTimeout = setTimeout(() => {
       setShowColor(true);
-    }, colorRevealDelay);
-    return () => clearTimeout(colorTimeout);
+    }, colorRevealDelay + 100);
+    
+    return () => {
+      clearTimeout(visibilityTimeout);
+      clearTimeout(colorTimeout);
+    };
   }, [colorRevealDelay]);
 
   const pieces = useMemo(() => {
@@ -82,26 +90,25 @@ export const PixelImage = ({
       )`;
 
       const delay = Math.random() * maxAnimationDelay;
+      if (index === 0) {
+      }
       return {
         clipPath,
         delay,
       };
     });
-  }, [rows, cols, maxAnimationDelay]);
+  }, [rows, cols, maxAnimationDelay, pixelFadeInDuration]);
 
   return (
     <div className="relative min-w-[50vw] min-h-[50vw] h-[50vw] w-[50vw] select-none md:h-96 md:w-96">
       {pieces.map((piece, index) => (
         <div
           key={index}
-          className={cn(
-            "absolute inset-0 transition-all ease-out",
-            isVisible ? "opacity-100" : "opacity-0",
-          )}
+          className="absolute inset-0"
           style={{
             clipPath: piece.clipPath,
-            transitionDelay: `${piece.delay}ms`,
-            transitionDuration: `${pixelFadeInDuration}ms`,
+            opacity: isVisible ? 1 : 0,
+            transition: `opacity ${pixelFadeInDuration}ms ease-out ${piece.delay}ms`,
           }}
         >
           <img
