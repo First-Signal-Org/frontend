@@ -31,8 +31,15 @@ code {
 }
 
 /* Ensure smooth transitions for theme changes */
-* {
+body, body > *, 
+button, input, select, textarea,
+[class*="bg-"], [class*="text-"], [class*="border-"] {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Exclude pixel image elements from global transitions */
+[class*="pixel-"], .pixel-image, .pixel-image * {
+  transition: none !important;
 }
 
 @theme inline {
