@@ -2,10 +2,27 @@ import { createFileRoute } from '@tanstack/react-router'
 import { PixelImage } from '@/components/ui/pixel-image'
 import { SmoothCursor } from '@/components/ui/smooth-cursor'
 import { Notification } from '@/components/notification'
-import { notifications } from '@/lib/notifications'
+import { notificationManager, type NotificationItem } from '@/lib/notifications'
 import { AnimatedList } from '@/components/ui/animated-list'
+import { useNavigate } from '@tanstack/react-router'
+import { useState, useEffect } from 'react'
 
 function App() {
+  const navigate = useNavigate()
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+
+  // Subscribe to notifications
+  useEffect(() => {
+    const unsubscribe = notificationManager.subscribe((newNotifications) => {
+      setNotifications(newNotifications)
+    })
+    
+    // Initial load
+    setNotifications(notificationManager.getNotifications())
+
+    return unsubscribe
+  }, [])
+
   return (
     <div className="text-center cursor-hidden px-12 py-2">
       {/* <AnimatedThemeToggler /> */}
@@ -37,7 +54,7 @@ function App() {
           Ever had a crush but were too afraid to confess?
         </p>
       </div>
-      <button className='bg-primary hover:bg-primary/80 transition-colors duration-200 text-white font-semibold px-6 py-3 rounded-lg shadow-md'>
+      <button className='bg-primary hover:bg-primary/80 transition-colors duration-200 text-white font-semibold px-6 py-3 rounded-lg shadow-md' onClick={() => navigate({ to: '/login' })}>
         Click here
       </button>
     </div>

@@ -51,6 +51,13 @@ export class GoogleAuthClientService {
   async initialize(): Promise<void> {
     if (this.isInitialized) return
 
+    console.log('🔧 Initializing Google Auth with:', {
+      clientId: this.config.clientId.substring(0, 20) + '...',
+      origin: window.location.origin,
+      hostname: window.location.hostname,
+      port: window.location.port
+    })
+
     // Load Google Identity Services script
     await this.loadGoogleScript()
     
@@ -64,6 +71,7 @@ export class GoogleAuthClientService {
       })
       
       this.isInitialized = true
+      console.log('✅ Google Identity Services initialized successfully')
     } else {
       throw new Error('Failed to load Google Identity Services')
     }
@@ -102,6 +110,61 @@ export class GoogleAuthClientService {
   }
 
   /**
+   * Verify token with proxy endpoint
+   */
+  private async verifyTokenWithProxy(credential: string): Promise<GoogleAuthResult> {
+    try {
+      console.log('🔄 Verifying Google token with proxy...')
+      
+      const response = await fetch('/api/google-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ credential })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Proxy server error: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Token verification failed')
+      }
+
+      console.log('✅ Successfully verified Google token:', data.profile.email)
+
+      return {
+        success: true,
+        profile: data.profile,
+        credential: data.credential
+      }
+
+    } catch (error) {
+      console.error('Google token verification error:', error)
+      
+      // Fallback to client-side decoding if proxy fails
+      try {
+        console.log('🔄 Falling back to client-side token decoding...')
+        const profile = this.decodeJWT(credential)
+        return {
+          success: true,
+          profile,
+          credential
+        }
+      } catch (fallbackError) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to verify Google token'
+        }
+      }
+    }
+  }
+
+  /**
    * Decode JWT ID token
    */
   private decodeJWT(token: string): GoogleUserProfile {
@@ -132,18 +195,15 @@ export class GoogleAuthClientService {
       return new Promise((resolve) => {
         window.google.accounts.id.initialize({
           client_id: this.config.clientId,
-          callback: (response: GoogleCredentialResponse) => {
+          callback: async (response: GoogleCredentialResponse) => {
             try {
-              const profile = this.decodeJWT(response.credential)
-              resolve({
-                success: true,
-                profile,
-                credential: response.credential
-              })
+              // Use proxy endpoint for secure token verification
+              const result = await this.verifyTokenWithProxy(response.credential)
+              resolve(result)
             } catch (error) {
               resolve({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to decode token'
+                error: error instanceof Error ? error.message : 'Failed to verify token'
               })
             }
           }
@@ -194,18 +254,15 @@ export class GoogleAuthClientService {
 
         window.google.accounts.id.initialize({
           client_id: this.config.clientId,
-          callback: (response: GoogleCredentialResponse) => {
+          callback: async (response: GoogleCredentialResponse) => {
             try {
-              const profile = this.decodeJWT(response.credential)
-              resolve({
-                success: true,
-                profile,
-                credential: response.credential
-              })
+              // Use proxy endpoint for secure token verification
+              const result = await this.verifyTokenWithProxy(response.credential)
+              resolve(result)
             } catch (error) {
               resolve({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to decode token'
+                error: error instanceof Error ? error.message : 'Failed to verify token'
               })
             }
           }
@@ -311,8 +368,13 @@ export const createGoogleAuthClientService = (): GoogleAuthClientService => {
     return new GoogleAuthClientService(config)
   } catch (error) {
     console.warn('Google Auth not configured:', error)
-    // Return a mock service for development
-    return new GoogleAuthClientService({ clientId: 'mock-client-id' })
+    // Try to get the client ID directly from environment
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (clientId) {
+      console.log('Using Google Client ID from environment:', clientId.substring(0, 20) + '...')
+      return new GoogleAuthClientService({ clientId })
+    }
+    throw new Error('VITE_GOOGLE_CLIENT_ID is required but not found in environment variables')
   }
 }
 

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { MagicCard } from '@/components/ui/magic-card'
 import { NeonGradientCard } from '@/components/ui/neon-gradient-card'
-// import { WarpBackground } from '@/components/ui/warp-background'
+import { WarpBackground } from '@/components/ui/warp-background'
 import { Github, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { 
@@ -11,6 +11,11 @@ import {
   type GoogleAuthResult, 
   type GoogleUserProfile 
 } from '@/lib/google-auth-client'
+import { 
+  createGitHubAuthClientService,
+  type GitHubAuthResult,
+  type GitHubUser 
+} from '@/lib/github-auth-client'
 import { validateEnvironment } from '@/lib/config'
 
 export const Route = createFileRoute('/login')({
@@ -31,7 +36,8 @@ function RouteComponent() {
     const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState<'google' | 'github' | null>(null)
     const [error, setError] = useState<string | null>(null)
-    const [user, setUser] = useState<GoogleUserProfile | null>(null)
+    const [user, setUser] = useState<GoogleUserProfile | GitHubUser | null>(null)
+    const [authProvider, setAuthProvider] = useState<'google' | 'github' | null>(null)
     const [theme, setTheme] = useState<string>(() => {
         if (typeof window !== 'undefined') {
             return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
@@ -39,12 +45,21 @@ function RouteComponent() {
         return 'light'
     })
 
-    // Initialize Google Auth Service (safe initialization)
+    // Initialize Auth Services (safe initialization)
     const [googleAuthService] = useState(() => {
         try {
             return createGoogleAuthClientService()
         } catch (error) {
             console.warn('Failed to initialize Google Auth:', error)
+            return null
+        }
+    })
+
+    const [githubAuthService] = useState(() => {
+        try {
+            return createGitHubAuthClientService()
+        } catch (error) {
+            console.warn('Failed to initialize GitHub Auth:', error)
             return null
         }
     })
@@ -70,17 +85,33 @@ function RouteComponent() {
             setError(`Setup needed: ${errors.join(', ')}`)
         }
 
-        // Check if user is already signed in
+        // Check if user is already signed in with Google
         if (googleAuthService && typeof window !== 'undefined') {
             try {
                 if (googleAuthService.isSignedIn()) {
                     const profile = googleAuthService.getStoredProfile()
                     if (profile) {
                         setUser(profile)
+                        setAuthProvider('google')
                     }
                 }
             } catch (error) {
-                console.warn('Error checking stored auth:', error)
+                console.warn('Error checking stored Google auth:', error)
+            }
+        }
+
+        // Check if user is already signed in with GitHub
+        if (githubAuthService && typeof window !== 'undefined') {
+            try {
+                if (githubAuthService.isSignedIn()) {
+                    const githubUser = githubAuthService.getStoredUser()
+                    if (githubUser) {
+                        setUser(githubUser)
+                        setAuthProvider('github')
+                    }
+                }
+            } catch (error) {
+                console.warn('Error checking stored GitHub auth:', error)
             }
         }
     }, [googleAuthService])
@@ -101,15 +132,16 @@ function RouteComponent() {
                 // Store the credential for future use
                 googleAuthService.storeCredential(result.credential)
                 setUser(result.profile)
+                setAuthProvider('google')
                 
                 console.log('Google login successful:', {
                     user: result.profile.name,
                     email: result.profile.email
                 })
 
-                // Navigate to home page after successful login
+                // Navigate to dashboard after successful login
                 setTimeout(() => {
-                    navigate({ to: '/' })
+                    navigate({ to: '/dashboard' })
                 }, 1500)
                 
             } else {
@@ -124,27 +156,54 @@ function RouteComponent() {
     }
 
     const handleGithubLogin = async () => {
+        if (!githubAuthService) {
+            setError('GitHub Auth service is not available')
+            return
+        }
+
         setIsLoading('github')
         setError(null)
+        
         try {
-            // Simulate GitHub OAuth flow
-            await new Promise(resolve => setTimeout(resolve, 2000))
-            console.log('GitHub login initiated')
-            setError('GitHub authentication is not implemented yet')
+            const result: GitHubAuthResult = await githubAuthService.signInWithPopup()
+            
+            if (result.success && result.user && result.accessToken) {
+                // Store the user data for future use
+                githubAuthService.storeUserData(result.user, result.accessToken)
+                setUser(result.user)
+                setAuthProvider('github')
+                
+                console.log('GitHub login successful:', {
+                    user: result.user.name || result.user.login,
+                    username: result.user.login
+                })
+
+                // Navigate to dashboard after successful login
+                setTimeout(() => {
+                    navigate({ to: '/dashboard' })
+                }, 1500)
+                
+            } else {
+                setError(result.error || 'GitHub authentication failed')
+            }
         } catch (error) {
             console.error('GitHub login failed:', error)
-            setError('GitHub authentication failed')
+            setError(error instanceof Error ? error.message : 'GitHub authentication failed')
         } finally {
             setIsLoading(null)
         }
     }
 
     const handleLogout = async () => {
-        if (googleAuthService) {
+        if (authProvider === 'google' && googleAuthService) {
             await googleAuthService.signOut()
             googleAuthService.clearStoredCredential()
+        } else if (authProvider === 'github' && githubAuthService) {
+            await githubAuthService.signOut()
+            githubAuthService.clearStoredData()
         }
         setUser(null)
+        setAuthProvider(null)
         setError(null)
     }
 
@@ -170,25 +229,25 @@ function RouteComponent() {
                             <CardHeader className="text-center pb-4">
                                 <div className="flex justify-center mb-4">
                                     <img 
-                                        src={user.picture} 
-                                        alt={user.name}
+                                        src={'picture' in user ? user.picture : user.avatar_url} 
+                                        alt={authProvider === 'google' ? (user as GoogleUserProfile).name : (user as GitHubUser).name || (user as GitHubUser).login}
                                         className="w-24 h-24 rounded-full object-cover border-4 border-green-500"
                                     />
                                 </div>
                                 <CardTitle className="text-2xl font-bold text-green-600">
-                                    Welcome, {user.given_name}!
+                                    Welcome, {authProvider === 'google' ? (user as GoogleUserProfile).given_name : (user as GitHubUser).name || (user as GitHubUser).login}!
                                 </CardTitle>
                                 <p className="text-muted-foreground">
-                                    Successfully signed in with Google
+                                    Successfully signed in with {authProvider === 'google' ? 'Google' : 'GitHub'}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                    {user.email}
+                                    {authProvider === 'google' ? (user as GoogleUserProfile).email : (user as GitHubUser).email || `@${(user as GitHubUser).login}`}
                                 </p>
                             </CardHeader>
                             
                             <CardContent className="space-y-4">
                                 <div className="text-center text-sm text-muted-foreground">
-                                    Redirecting to home...
+                                    Redirecting to dashboard...
                                 </div>
                                 <button
                                     onClick={handleLogout}
