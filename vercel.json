@@ -1,5 +1,17 @@
 {
+  "functions": {
+    "api/github-auth.js": {
+      "runtime": "nodejs18.x"
+    },
+    "api/google-auth.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
