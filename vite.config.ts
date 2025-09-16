@@ -256,4 +256,15 @@ export default defineConfig({
   server: {
     port: 3000, // Match the port you authorized in Google Cloud Console
   },
+  build: {
+    // Ensure proper SPA build configuration
+    rollupOptions: {
+      output: {
+        // Ensure consistent chunk naming for better caching
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    }
+  },
 }) 
