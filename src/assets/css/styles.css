@@ -83,3 +83,223 @@ body, button, input, select, textarea {
     animation: none;
     mix-blend-mode: normal;
 }
+
+/* React Grid Layout Styles */
+.react-grid-layout {
+  position: relative;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+  overflow: visible !important;
+}
+
+/* Smooth hover effects for cards */
+.react-grid-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.react-grid-item:hover .react-grid-item.react-draggable-dragging {
+  transform: scale(1.05) translateY(-1px) !important;
+}
+
+.react-grid-item img {
+  pointer-events: none;
+  user-select: none;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+
+.react-grid-item.resizing {
+  opacity: 0.6;
+  z-index: 3;
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+  transform: scale(1.05) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+.react-grid-item.dropping {
+  visibility: hidden;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: transparent;
+  opacity: 0.4;
+  transition-duration: 100ms;
+  z-index: 2;
+  user-select: none;
+  border-radius: 8px;
+  border: 2px dashed hsl(var(--primary) / 0.5);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.2);
+}
+
+.react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB2aWV3Qm94PSIwIDAgNiA2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZG90cyBmaWxsPSIjODg4IiBkPSJtMTUgMTJoMnYyaC0yem0wIDRoMnYyaC0yem0wIDRoMnYyaC0yem00LThoMnYyaC0yem0wIDRoMnYyaC0yem00LTRoMnYyaC0yeiIvPgo8L3N2Zz4K');
+  background-position: bottom right;
+  padding: 0 3px 3px 0;
+  background-repeat: no-repeat;
+  background-origin: content-box;
+  box-sizing: border-box;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.react-grid-item:hover .react-resizable-handle {
+  opacity: 1;
+}
+
+.react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  border-right: 2px solid hsl(var(--muted-foreground));
+  border-bottom: 2px solid hsl(var(--muted-foreground));
+}
+
+/* Remove tap highlights and focus effects from cards */
+.react-grid-item * {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow buttons to be clickable */
+.react-grid-item button {
+  pointer-events: auto !important;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection only in edit mode */
+.react-grid-item input,
+.react-grid-item textarea {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Remove focus outlines and active states */
+.react-grid-item button:focus,
+.react-grid-item button:active,
+.react-grid-item *:focus,
+.react-grid-item *:active {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Ensure floating buttons are always clickable */
+.react-grid-item .absolute button {
+  pointer-events: auto !important;
+  z-index: 999 !important;
+  position: relative;
+}
+
+/* Prevent drag on floating button container */
+.react-grid-item .absolute {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
+.react-grid-item .absolute button {
+  pointer-events: auto !important;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
+/* No-drag class for floating buttons */
+.no-drag,
+.no-drag * {
+  pointer-events: auto !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Disable drag and hover effects when editing */
+.react-grid-item[data-editing="true"] {
+  pointer-events: none !important;
+}
+
+.react-grid-item[data-editing="true"] .editing-mode {
+  pointer-events: auto !important;
+}
+
+.react-grid-item[data-editing="true"]:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.react-grid-item[data-editing="true"] .react-draggable {
+  pointer-events: none !important;
+}
+
+/* Ensure edit inputs and buttons work */
+.editing-mode input,
+.editing-mode textarea,
+.editing-mode button,
+.edit-content-wrapper,
+.edit-content-wrapper * {
+  pointer-events: auto !important;
+}
+
+/* Disable react-grid-layout interactions when editing */
+.react-grid-item[data-editing="true"] .react-grid-layout,
+.react-grid-item[data-editing="true"] .react-draggable,
+.react-grid-item[data-editing="true"] .react-resizable {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Prevent dragging during edit */
+.react-grid-item[data-editing="true"] {
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+}
+
+/* Specifically target card elements */
+[data-testid="card"],
+.group {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+}
