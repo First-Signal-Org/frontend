@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
-import { BentoGrid, type BentoItem } from '@/components/ui/bento-grid'
+import { BentoGrid, type BentoItem, type BentoSize } from '@/components/ui/bento-grid'
 import { 
   LogOut, 
   Type, 
@@ -67,23 +67,26 @@ function DashboardComponent() {
     return [
       {
         id: '1',
-        type: 'text',
+        type: 'text' as const,
         title: 'Welcome!',
         content: 'Welcome to your personal dashboard! This is a Bento grid where you can add text, URLs, embedded content, and images. Click "Add Item" to get started.',
+        size: 'medium' as BentoSize,
         layout: { x: 0, y: 0, w: 3, h: 3 }
       },
       {
         id: '2',
-        type: 'url',
+        type: 'url' as const,
         title: 'GitHub',
         content: 'https://github.com',
+        size: 'medium' as BentoSize,
         layout: { x: 3, y: 0, w: 3, h: 2 }
       },
       {
         id: '3',
-        type: 'embed',
+        type: 'embed' as const,
         title: 'YouTube Demo',
         content: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+        size: 'medium' as BentoSize,
         layout: { x: 0, y: 3, w: 6, h: 4 }
       }
     ]
@@ -182,21 +185,6 @@ function DashboardComponent() {
     setBentoItems(items)
   }
 
-  const handleAddItem = (newItem: Omit<BentoItem, 'id' | 'layout'>) => {
-    const id = Date.now().toString()
-    const item: BentoItem = {
-      ...newItem,
-      id,
-      layout: {
-        x: 0,
-        y: 0,
-        w: newItem.type === 'embed' ? 6 : newItem.type === 'text' ? 3 : 2,
-        h: newItem.type === 'text' ? 3 : newItem.type === 'embed' ? 4 : 2
-      }
-    }
-    
-    setBentoItems([...bentoItems, item])
-  }
 
   const handleAddItemWithType = (_type: BentoItem['type']) => {
     setShowAddModal(true)
@@ -235,20 +223,20 @@ function DashboardComponent() {
     <div className="w-full h-full bg-background rounded-lg flex flex-col gap-4">
       {/* Profile Header */}
       <div className="text-center mb-8">
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-left mb-6">
           <img 
             src={isGoogleUser ? (user as GoogleUserProfile).picture : (user as GitHubUser).avatar_url} 
             alt={isGoogleUser ? (user as GoogleUserProfile).name : ((user as GitHubUser).name || (user as GitHubUser).login)}
             className="w-56 h-56 rounded-full object-cover border-2 border-border"
           />
         </div>
-        <h1 className="text-3xl font-bold mb-2 text-foreground">
+        <h1 className="text-3xl font-bold mb-2 text-foreground text-left">
           {isGoogleUser 
             ? (user as GoogleUserProfile).name 
             : ((user as GitHubUser).name || (user as GitHubUser).login)
           }
         </h1>
-        <p className="text-muted-foreground text-sm mb-4">
+        <p className="text-muted-foreground text-sm mb-4 text-left">
           {isGitHubUser && (user as GitHubUser).bio 
             ? (user as GitHubUser).bio 
             : `${authProvider === 'google' ? 'Google' : 'GitHub'} Account`
@@ -312,24 +300,25 @@ function DashboardComponent() {
   return (
     <div className="min-h-screen bg-background">
       {/* Main Split Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[calc(100vh-8rem)]">
+      <div className="max-w-none px-4 sm:px-6 lg:px-16 py-6">
+
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-96 min-h-[calc(100vh-8rem)]">
+
           {/* Left Sidebar - Profile */}
-          <div className="lg:col-span-1">
+          <div className="w-full lg:w-80 flex-shrink-0">
             <div className="sticky top-24 h-[calc(100vh-10rem)]">
               {profileSidebar}
             </div>
           </div>
 
           {/* Right Side - Bento Grid */}
-          <div className="lg:col-span-2">
+          <div className="flex-1 min-w-0">
             <div className="h-full">
               <BentoGrid
                 items={bentoItems}
                 onItemsChange={handleBentoItemsChange}
                 editable={true}
                 className="w-full h-full"
-                onAddItem={handleAddItem}
                 showAddModal={showAddModal}
                 setShowAddModal={setShowAddModal}
               />
