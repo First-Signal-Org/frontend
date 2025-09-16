@@ -1,17 +1,5 @@
 {
-  "functions": {
-    "api/github-auth.js": {
-      "runtime": "@vercel/node"
-    },
-    "api/google-auth.js": {
-      "runtime": "@vercel/node"
-    }
-  },
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
