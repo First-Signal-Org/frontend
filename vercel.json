@@ -1,10 +1,10 @@
 {
   "functions": {
     "api/github-auth.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "@vercel/node"
     },
     "api/google-auth.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "@vercel/node"
     }
   },
   "rewrites": [
