@@ -208,6 +208,7 @@ function DashboardComponent() {
     
     // Add only one mock notification
     notificationManager.addSignalNotification(signalId, 'sent')
+    navigate({ to: '/send' })
   }
 
   const handleClearNotifications = () => {
