@@ -38,7 +38,7 @@ function RouteComponent() {
     const [isLoading, setIsLoading] = useState<'google' | 'github' | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [user, setUser] = useState<GoogleUserProfile | GitHubUser | null>(null)
-    const [backendUser, setBackendUser] = useState<UserProfile | null>(null)
+    const [_, setBackendUser] = useState<UserProfile | null>(null)
     const [authProvider, setAuthProvider] = useState<'google' | 'github' | null>(null)
     const [theme, setTheme] = useState<string>(() => {
         if (typeof window !== 'undefined') {

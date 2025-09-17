@@ -173,7 +173,7 @@ export class UserServiceClient {
         throw new Error(errorData.error || `Server error: ${response.status}`)
       }
 
-      const result: ApiResponse<any> = await response.json()
+    //   const result: ApiResponse<any> = await response.json()
       
       console.log('✅ Profile update successful')
       return true
