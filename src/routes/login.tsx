@@ -16,6 +16,7 @@ import {
   type GitHubAuthResult,
   type GitHubUser 
 } from '@/lib/github-auth-client'
+import { type UserProfile } from '@/lib/user-service'
 import { validateEnvironment } from '@/lib/config'
 
 export const Route = createFileRoute('/login')({
@@ -37,6 +38,7 @@ function RouteComponent() {
     const [isLoading, setIsLoading] = useState<'google' | 'github' | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [user, setUser] = useState<GoogleUserProfile | GitHubUser | null>(null)
+    const [backendUser, setBackendUser] = useState<UserProfile | null>(null)
     const [authProvider, setAuthProvider] = useState<'google' | 'github' | null>(null)
     const [theme, setTheme] = useState<string>(() => {
         if (typeof window !== 'undefined') {
@@ -132,12 +134,20 @@ function RouteComponent() {
                 // Store the credential for future use
                 googleAuthService.storeCredential(result.credential)
                 setUser(result.profile)
+                setBackendUser(result.user || null)
                 setAuthProvider('google')
                 
                 console.log('Google login successful:', {
                     user: result.profile.name,
-                    email: result.profile.email
+                    email: result.profile.email,
+                    backendUser: result.user ? 'Created/Found' : 'Failed',
+                    backendError: result.error || 'None'
                 })
+
+                // Show backend integration status
+                if (result.error) {
+                    console.warn('Backend integration warning:', result.error)
+                }
 
                 // Navigate to dashboard after successful login
                 setTimeout(() => {
@@ -171,12 +181,20 @@ function RouteComponent() {
                 // Store the user data for future use
                 githubAuthService.storeUserData(result.user, result.accessToken)
                 setUser(result.user)
+                setBackendUser(result.backendUser || null)
                 setAuthProvider('github')
                 
                 console.log('GitHub login successful:', {
                     user: result.user.name || result.user.login,
-                    username: result.user.login
+                    username: result.user.login,
+                    backendUser: result.backendUser ? 'Created/Found' : 'Failed',
+                    backendError: result.error || 'None'
                 })
+
+                // Show backend integration status
+                if (result.error) {
+                    console.warn('Backend integration warning:', result.error)
+                }
 
                 // Navigate to dashboard after successful login
                 setTimeout(() => {
@@ -203,6 +221,7 @@ function RouteComponent() {
             githubAuthService.clearStoredData()
         }
         setUser(null)
+        setBackendUser(null)
         setAuthProvider(null)
         setError(null)
     }

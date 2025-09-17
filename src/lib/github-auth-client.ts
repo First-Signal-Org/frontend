@@ -1,7 +1,10 @@
 /**
  * GitHub OAuth Authentication Service
  * Client-side GitHub authentication using OAuth 2.0 flow
+ * Integrates with backend user service for complete authentication flow
  */
+
+import { userService, type OAuthCallbackData, type UserProfile } from './user-service'
 
 export interface GitHubAuthConfig {
   clientId: string
@@ -31,6 +34,7 @@ export interface GitHubAuthResult {
   success: boolean
   user?: GitHubUser
   accessToken?: string
+  backendUser?: UserProfile // Backend user profile
   error?: string
 }
 
@@ -193,10 +197,36 @@ export class GitHubAuthClientService {
         email: data.user.email || 'Not provided'
       })
 
-      return {
-        success: true,
-        user: data.user,
-        accessToken: data.accessToken
+      // Now create/login user with backend
+      try {
+        const oauthData: OAuthCallbackData = {
+          email: data.user.email || `${data.user.login}@github.local`, // Use login as fallback email
+          name: data.user.name || data.user.login,
+          provider: 'github',
+          provider_id: data.user.id.toString(),
+          profile_picture: data.user.avatar_url,
+          bio: data.user.bio || undefined
+        }
+
+        const backendUser = await userService.handleOAuthCallback(oauthData)
+
+        return {
+          success: true,
+          user: data.user,
+          accessToken: data.accessToken,
+          backendUser: backendUser || undefined
+        }
+
+      } catch (backendError) {
+        console.warn('Backend user creation failed, continuing with frontend-only auth:', backendError)
+        
+        // Continue with frontend-only authentication if backend fails
+        return {
+          success: true,
+          user: data.user,
+          accessToken: data.accessToken,
+          error: `Backend integration failed: ${backendError instanceof Error ? backendError.message : 'Unknown error'}`
+        }
       }
 
     } catch (error) {

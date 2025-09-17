@@ -17,28 +17,63 @@ export const Route = createFileRoute('/send')({
 
 interface FormData {
   message: string
-  telegram: string
-  recipient: string
+  phoneNumber: string
+}
+
+// Simple phone number validation function
+const validatePhoneNumber = (phone: string): string | null => {
+  // Remove all non-digit characters
+  const digitsOnly = phone.replace(/\D/g, '')
+  
+  // Check if it's a valid US phone number (10 digits) or international (starts with +)
+  if (phone.startsWith('+')) {
+    if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+      return 'Please enter a valid international phone number (e.g., +1234567890)'
+    }
+  } else if (digitsOnly.length === 10) {
+    // US phone number format
+    return null
+  } else if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+    // US phone number with country code
+    return null
+  } else {
+    return 'Please enter a valid phone number (e.g., +1234567890 or 1234567890)'
+  }
+  
+  return null
 }
 
 function Send() {
     const [theme] = useState<'dark' | 'light'>('dark')
     const [formData, setFormData] = useState<FormData>({
       message: '',
-      telegram: '',
-      recipient: ''
+      phoneNumber: ''
     })
     const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submitError, setSubmitError] = useState<string | null>(null)
     const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
     
-    const isValid = formData.message.trim() && formData.recipient.trim()
+    const isValid = formData.message.trim() && formData.phoneNumber.trim()
   
     const handleInputChange = (field: keyof FormData) => (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
-      const value = e.target.value
+      let value = e.target.value
+      
+      // Format phone number as user types (only for phone number field)
+      if (field === 'phoneNumber' && !value.startsWith('+')) {
+        // Only format if it's not an international number
+        const digitsOnly = value.replace(/\D/g, '')
+        if (digitsOnly.length <= 10) {
+          if (digitsOnly.length >= 6) {
+            value = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`
+          } else if (digitsOnly.length >= 3) {
+            value = `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`
+          }
+        }
+      }
+      
       setFormData(prev => ({ ...prev, [field]: value }))
       
       if (errors[field]) {
@@ -60,25 +95,55 @@ function Send() {
       setSubmitError(null)
       setSubmitSuccess(null)
   
-      if (!formData.message.trim() || !formData.recipient.trim()) {
+      if (!formData.message.trim() || !formData.phoneNumber.trim()) {
         setSubmitError('Please fill in all required fields.')
+        return
+      }
+      
+      // Validate phone number
+      const phoneError = validatePhoneNumber(formData.phoneNumber)
+      if (phoneError) {
+        setSubmitError(phoneError)
         return
       }
   
       try {
         setIsSubmitting(true)
         
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        // Call messaging API endpoint
+        // Format phone number for API (remove formatting, ensure + prefix for international)
+        let phoneForAPI = formData.phoneNumber.replace(/\D/g, '')
+        if (!formData.phoneNumber.startsWith('+')) {
+          // Add +1 for US numbers
+          if (phoneForAPI.length === 10) {
+            phoneForAPI = `+1${phoneForAPI}`
+          } else if (phoneForAPI.length === 11 && phoneForAPI.startsWith('1')) {
+            phoneForAPI = `+${phoneForAPI}`
+          }
+        } else {
+          phoneForAPI = formData.phoneNumber
+        }
         
-        console.log('Sending message:', {
-          recipient: formData.recipient,
-          message: formData.message,
-          from: formData.telegram || 'Anonymous'
+        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:10000'}/api/messaging/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: phoneForAPI,
+            message: formData.message
+          })
         })
         
-        setSubmitSuccess('Message sent successfully!')
-        setFormData({ message: '', recipient: '', telegram: '' })
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP error! status: ${response.status}`)
+        }
+        
+        console.log('Message sent successfully:', data)
+        setSubmitSuccess(`Message sent successfully! SID: ${data.sid}`)
+        setFormData({ message: '', phoneNumber: '' })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         setSubmitError(message)
@@ -106,7 +171,7 @@ function Send() {
               <CardHeader className="border-b border-border p-4 [.border-b]:pb-4">
                 <CardTitle>
                   <ComicText fontSize={3} style={{ color: "#ffffff" }}>
-                  Send a Signal
+                  Send SMS Message
                   </ComicText>
                 </CardTitle>
               </CardHeader>
@@ -123,7 +188,7 @@ function Send() {
                         <Input 
                         //   className={`min-h-32 w-full rounded-md border px-3 py-2 text-foreground resize-none`}
                           id="message" 
-                          placeholder="What's on your mind?"
+                          placeholder="Enter your message..."
                           value={formData.message}
                           onChange={handleInputChange('message')}
                         />
@@ -134,39 +199,21 @@ function Send() {
                       )}
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="recipient">
+                      <Label htmlFor="phoneNumber">
                         <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
-                        Recipient handle
+                        Phone Number
                         </SparklesText>
                       </Label>
                       <Input 
-                        id="recipient" 
-                        type="text"
-                        placeholder="john_doe"
-                        value={formData.recipient}
-                        onChange={handleInputChange('recipient')}
-                        className={errors.recipient ? 'border-red-500 mt-2' : 'mt-2'}
+                        id="phoneNumber" 
+                        type="tel"
+                        placeholder="+1 (555) 123-4567"
+                        value={formData.phoneNumber}
+                        onChange={handleInputChange('phoneNumber')}
+                        className={errors.phoneNumber ? 'border-red-500 mt-2' : 'mt-2'}
                       />
-                      {errors.recipient && (
-                        <span className="text-sm text-red-500">{errors.recipient}</span>
-                      )}
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">
-                        <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
-                        Your handle (optional)
-                        </SparklesText>
-                      </Label>
-                      <Input 
-                        id="telegram" 
-                        type="text"
-                        placeholder="john_doe"
-                        value={formData.telegram}
-                        onChange={handleInputChange('telegram')}
-                        className={errors.telegram ? 'border-red-500 mt-2' : 'mt-2'}
-                      />
-                      {errors.telegram && (
-                        <span className="text-sm text-red-500">{errors.telegram}</span>
+                      {errors.phoneNumber && (
+                        <span className="text-sm text-red-500">{errors.phoneNumber}</span>
                       )}
                     </div>
                   </div>

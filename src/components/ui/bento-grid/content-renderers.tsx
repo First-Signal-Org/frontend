@@ -10,7 +10,7 @@ export function TextContent({ item }: ContentRendererProps) {
   return (
     <div className="h-full flex items-center justify-center p-2 overflow-hidden">
       <p 
-        className="text-sm text-muted-foreground leading-relaxed text-center overflow-hidden" 
+        className="text-lg text-foreground leading-relaxed text-left overflow-hidden" 
         style={{ 
           display: '-webkit-box',
           WebkitLineClamp: 4,
@@ -87,7 +87,7 @@ export function EmbedContent({ item }: ContentRendererProps) {
 
   return (
     <div 
-      className="h-full flex flex-col justify-between p-2 cursor-pointer hover:bg-muted/50 transition-colors rounded-lg"
+      className="h-full flex flex-col justify-between p-2 cursor-pointer transition-colors rounded-lg"
       onClick={() => {
         window.open(item.content, '_blank')
       }}

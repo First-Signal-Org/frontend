@@ -2,7 +2,10 @@
  * Browser-only Google Authentication Service
  * Uses Google Identity Services (no server-side dependencies)
  * Optimized for React frontend applications
+ * Integrates with backend user service for complete authentication flow
  */
+
+import { userService, type OAuthCallbackData, type UserProfile } from './user-service'
 
 export interface GoogleAuthConfig {
   clientId: string
@@ -31,6 +34,7 @@ export interface GoogleAuthResult {
   success: boolean
   profile?: GoogleUserProfile
   credential?: string
+  user?: UserProfile // Backend user profile
   error?: string
 }
 
@@ -110,7 +114,7 @@ export class GoogleAuthClientService {
   }
 
   /**
-   * Verify token with proxy endpoint
+   * Verify token and create/login user with backend
    */
   private async verifyTokenWithProxy(credential: string): Promise<GoogleAuthResult> {
     try {
@@ -137,10 +141,36 @@ export class GoogleAuthClientService {
 
       console.log('✅ Successfully verified Google token:', data.profile.email)
 
-      return {
-        success: true,
-        profile: data.profile,
-        credential: data.credential
+      // Now create/login user with backend
+      try {
+        const oauthData: OAuthCallbackData = {
+          email: data.profile.email,
+          name: data.profile.name,
+          provider: 'google',
+          provider_id: data.profile.sub,
+          profile_picture: data.profile.picture,
+          bio: undefined
+        }
+
+        const backendUser = await userService.handleOAuthCallback(oauthData)
+
+        return {
+          success: true,
+          profile: data.profile,
+          credential: data.credential,
+          user: backendUser || undefined
+        }
+
+      } catch (backendError) {
+        console.warn('Backend user creation failed, continuing with frontend-only auth:', backendError)
+        
+        // Continue with frontend-only authentication if backend fails
+        return {
+          success: true,
+          profile: data.profile,
+          credential: data.credential,
+          error: `Backend integration failed: ${backendError instanceof Error ? backendError.message : 'Unknown error'}`
+        }
       }
 
     } catch (error) {
@@ -150,11 +180,38 @@ export class GoogleAuthClientService {
       try {
         console.log('🔄 Falling back to client-side token decoding...')
         const profile = this.decodeJWT(credential)
-        return {
-          success: true,
-          profile,
-          credential
+        
+        // Try backend integration with fallback profile
+        try {
+          const oauthData: OAuthCallbackData = {
+            email: profile.email,
+            name: profile.name,
+            provider: 'google',
+            provider_id: profile.sub,
+            profile_picture: profile.picture,
+            bio: undefined
+          }
+
+          const backendUser = await userService.handleOAuthCallback(oauthData)
+
+          return {
+            success: true,
+            profile,
+            credential,
+            user: backendUser || undefined
+          }
+
+        } catch (backendError) {
+          console.warn('Backend user creation failed in fallback:', backendError)
+          
+          return {
+            success: true,
+            profile,
+            credential,
+            error: `Backend integration failed: ${backendError instanceof Error ? backendError.message : 'Unknown error'}`
+          }
         }
+
       } catch (fallbackError) {
         return {
           success: false,
