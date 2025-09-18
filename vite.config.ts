@@ -12,6 +12,17 @@ function apiPlugin() {
       const env = loadEnv('', process.cwd(), '')
       // GitHub OAuth endpoint
       server.middlewares.use('/api/github-auth', async (req: any, res: any, next: any) => {
+        // Add CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204
+          res.end()
+          return
+        }
+        
         if (req.method === 'POST') {
           try {
             let body = ''
@@ -143,6 +154,17 @@ function apiPlugin() {
 
       // Google OAuth endpoint
       server.middlewares.use('/api/google-auth', async (req: any, res: any, next: any) => {
+        // Add CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204
+          res.end()
+          return
+        }
+
         if (req.method === 'POST') {
           try {
             let body = ''
@@ -255,5 +277,8 @@ export default defineConfig({
   },
   server: {
     port: 3000, // Match the port you authorized in Google Cloud Console
+    headers: {
+      'Permissions-Policy': 'identity-credentials-get=*',
+    },
   },
-}) 
+})

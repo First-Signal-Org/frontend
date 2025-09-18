@@ -303,3 +303,42 @@ body, button, input, select, textarea {
   -webkit-tap-highlight-color: transparent !important;
   -webkit-touch-callout: none !important;
 }
+
+
+@keyframes section-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0%);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.7) translateY(-10%);
+  }
+}
+@keyframes section-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5) translateY(-10%);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0%);
+  }
+}
+@layer utilities {
+  .animate-section-fade-out {
+    animation: section-fade-out linear;
+    animation-timeline: scroll(root);
+    animation-range: 0 100vh;
+    animation-range: var(--fadeOut-range-start, 0%) var(--fadeOut-range-end, 100%);
+    animation-fill-mode: both;
+  }
+  .animate-section-fade-in {
+    animation: section-fade-in linear;
+    animation-timeline: scroll(root);
+    animation-range: 100vh 150vh;
+    animation-range: var(--fadeIn-range-start, 0%) var(--fadeIn-range-end, 100%); 
+    animation-fill-mode: both;
+  }
+}
+
