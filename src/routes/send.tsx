@@ -18,6 +18,11 @@ export const Route = createFileRoute('/send')({
 interface FormData {
   message: string
   phoneNumber: string
+  telegramUsername: string
+  messageService: 'sms' | 'telegram'
+  senderHandle: string
+  promptText: string
+  useEnvelope: boolean
 }
 
 // Simple phone number validation function
@@ -43,26 +48,136 @@ const validatePhoneNumber = (phone: string): string | null => {
   return null
 }
 
+// Simple Telegram username validation function
+const validateTelegramUsername = (username: string): string | null => {
+  // Remove @ if present
+  const cleanUsername = username.replace('@', '')
+  
+  // Check if it's a valid username format (5-32 characters, alphanumeric + underscore)
+  if (!/^[a-zA-Z0-9_]{5,32}$/.test(cleanUsername)) {
+    return 'Please enter a valid Telegram username (5-32 characters, letters, numbers, and underscores only)'
+  }
+  
+  return null
+}
+
+// Telegram service class
+class TelegramService {
+  private baseUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:10000'
+
+  async sendMessageToUser(
+    username: string, 
+    message: string, 
+    senderHandle?: string,
+    promptText?: string,
+    useEnvelope: boolean = true
+  ): Promise<{
+    success: boolean
+    message: string
+    error?: string
+    chatId?: string
+    resolvedUsername?: string
+    source?: string
+  }> {
+    try {
+      // Step 1: Resolve username to chat_id
+      const resolveResponse = await fetch(`${this.baseUrl}/api/telegram/resolve/${username.replace('@', '')}`)
+      const resolveData = await resolveResponse.json()
+
+      if (!resolveResponse.ok) {
+        return {
+          success: false,
+          message: 'Failed to resolve username',
+          error: resolveData.error || 'User not found'
+        }
+      }
+
+      // Step 2: Send message using the resolved chat_id with envelope support
+      const sendPayload: any = {
+        chat_id: resolveData.chat_id,
+        text: message,
+        use_envelope: useEnvelope,
+        protect_content: true
+      }
+
+      // Add optional envelope parameters
+      if (senderHandle) {
+        sendPayload.sender_handle = senderHandle
+      }
+      if (promptText) {
+        sendPayload.prompt_text = promptText
+      }
+
+      const sendResponse = await fetch(`${this.baseUrl}/api/telegram/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sendPayload)
+      })
+
+      const sendData = await sendResponse.json()
+
+      if (!sendResponse.ok) {
+        return {
+          success: false,
+          message: 'Failed to send message',
+          error: sendData.error || 'Unknown error'
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Message sent successfully!',
+        chatId: resolveData.chat_id,
+        resolvedUsername: resolveData.username,
+        source: resolveData.source
+      }
+
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Network error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+}
+
 function Send() {
     const [theme] = useState<'dark' | 'light'>('dark')
     const [formData, setFormData] = useState<FormData>({
       message: '',
-      phoneNumber: ''
+      phoneNumber: '',
+      telegramUsername: '',
+      messageService: 'sms',
+      senderHandle: '',
+      promptText: 'Do you want to receive this message?',
+      useEnvelope: true
     })
     const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submitError, setSubmitError] = useState<string | null>(null)
     const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
     
-    const isValid = formData.message.trim() && formData.phoneNumber.trim()
+    const telegramService = new TelegramService()
+    
+    const isValid = formData.message.trim() && 
+      ((formData.messageService === 'sms' && formData.phoneNumber.trim()) ||
+       (formData.messageService === 'telegram' && formData.telegramUsername.trim()))
   
     const handleInputChange = (field: keyof FormData) => (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
-      let value = e.target.value
+      let value: string | boolean = e.target.value
+      
+      // Handle checkbox inputs
+      if (field === 'useEnvelope' && e.target.type === 'checkbox') {
+        value = (e.target as HTMLInputElement).checked
+      }
       
       // Format phone number as user types (only for phone number field)
-      if (field === 'phoneNumber' && !value.startsWith('+')) {
+      if (field === 'phoneNumber' && typeof value === 'string' && !value.startsWith('+')) {
         // Only format if it's not an international number
         const digitsOnly = value.replace(/\D/g, '')
         if (digitsOnly.length <= 10) {
@@ -95,55 +210,104 @@ function Send() {
       setSubmitError(null)
       setSubmitSuccess(null)
   
-      if (!formData.message.trim() || !formData.phoneNumber.trim()) {
-        setSubmitError('Please fill in all required fields.')
+      if (!formData.message.trim()) {
+        setSubmitError('Please enter a message.')
         return
       }
-      
-      // Validate phone number
-      const phoneError = validatePhoneNumber(formData.phoneNumber)
-      if (phoneError) {
-        setSubmitError(phoneError)
-        return
+
+      if (formData.messageService === 'sms') {
+        if (!formData.phoneNumber.trim()) {
+          setSubmitError('Please enter a phone number.')
+          return
+        }
+        
+        // Validate phone number
+        const phoneError = validatePhoneNumber(formData.phoneNumber)
+        if (phoneError) {
+          setSubmitError(phoneError)
+          return
+        }
+      } else if (formData.messageService === 'telegram') {
+        if (!formData.telegramUsername.trim()) {
+          setSubmitError('Please enter a Telegram username.')
+          return
+        }
+        
+        // Validate Telegram username
+        const usernameError = validateTelegramUsername(formData.telegramUsername)
+        if (usernameError) {
+          setSubmitError(usernameError)
+          return
+        }
       }
   
       try {
         setIsSubmitting(true)
         
-        // Call messaging API endpoint
-        // Format phone number for API (remove formatting, ensure + prefix for international)
-        let phoneForAPI = formData.phoneNumber.replace(/\D/g, '')
-        if (!formData.phoneNumber.startsWith('+')) {
-          // Add +1 for US numbers
-          if (phoneForAPI.length === 10) {
-            phoneForAPI = `+1${phoneForAPI}`
-          } else if (phoneForAPI.length === 11 && phoneForAPI.startsWith('1')) {
-            phoneForAPI = `+${phoneForAPI}`
+        if (formData.messageService === 'sms') {
+          // SMS messaging logic
+          let phoneForAPI = formData.phoneNumber.replace(/\D/g, '')
+          if (!formData.phoneNumber.startsWith('+')) {
+            // Add +1 for US numbers
+            if (phoneForAPI.length === 10) {
+              phoneForAPI = `+1${phoneForAPI}`
+            } else if (phoneForAPI.length === 11 && phoneForAPI.startsWith('1')) {
+              phoneForAPI = `+${phoneForAPI}`
+            }
+          } else {
+            phoneForAPI = formData.phoneNumber
           }
-        } else {
-          phoneForAPI = formData.phoneNumber
+          
+          const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:10000'}/api/messaging/send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              to: phoneForAPI,
+              message: formData.message
+            })
+          })
+          
+          const data = await response.json()
+          
+          if (!response.ok) {
+            throw new Error(data.error || `HTTP error! status: ${response.status}`)
+          }
+          
+          console.log('SMS sent successfully:', data)
+          setSubmitSuccess(`SMS sent successfully! SID: ${data.sid}`)
+          
+        } else if (formData.messageService === 'telegram') {
+          // Telegram messaging logic with envelope support
+          const result = await telegramService.sendMessageToUser(
+            formData.telegramUsername, 
+            formData.message,
+            formData.senderHandle || undefined,
+            formData.promptText || undefined,
+            formData.useEnvelope
+          )
+          
+          if (!result.success) {
+            throw new Error(result.error || result.message)
+          }
+          
+          console.log('Telegram message sent successfully:', result)
+          const envelopeInfo = formData.useEnvelope ? ' (with envelope)' : ' (direct)'
+          setSubmitSuccess(`Telegram message sent successfully to @${result.resolvedUsername}${envelopeInfo}! (Source: ${result.source})`)
         }
         
-        const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:10000'}/api/messaging/send`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: phoneForAPI,
-            message: formData.message
-          })
+        // Clear form on success
+        setFormData({ 
+          message: '', 
+          phoneNumber: '', 
+          telegramUsername: '', 
+          messageService: formData.messageService,
+          senderHandle: '',
+          promptText: 'Do you want to receive this message?',
+          useEnvelope: true
         })
         
-        const data = await response.json()
-        
-        if (!response.ok) {
-          throw new Error(data.error || `HTTP error! status: ${response.status}`)
-        }
-        
-        console.log('Message sent successfully:', data)
-        setSubmitSuccess(`Message sent successfully! SID: ${data.sid}`)
-        setFormData({ message: '', phoneNumber: '' })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         setSubmitError(message)
@@ -171,22 +335,55 @@ function Send() {
               <CardHeader className="border-b border-border p-4 [.border-b]:pb-4">
                 <CardTitle>
                   <ComicText fontSize={3} style={{ color: "#ffffff" }}>
-                  Send SMS Message
+                  {`Send ${formData.messageService === 'sms' ? 'SMS' : 'Telegram'} Message`}
                   </ComicText>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
                 <form onSubmit={handleSubmit}>
                   <div className="grid gap-4">
+                    {/* Service Selection */}
                     <div className="grid gap-2">
-                      <Label htmlFor="bio">
+                      <Label htmlFor="messageService">
+                        <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
+                        Message Service
+                        </SparklesText>
+                      </Label>
+                      <div className="flex gap-4 mt-2">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="messageService"
+                            value="sms"
+                            checked={formData.messageService === 'sms'}
+                            onChange={handleInputChange('messageService')}
+                            className="w-4 h-4 text-primary bg-gray-100 border-gray-300 focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                          />
+                          <span className="text-sm font-medium text-foreground">SMS</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="messageService"
+                            value="telegram"
+                            checked={formData.messageService === 'telegram'}
+                            onChange={handleInputChange('messageService')}
+                            className="w-4 h-4 text-primary bg-gray-100 border-gray-300 focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                          />
+                          <span className="text-sm font-medium text-foreground">Telegram</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Message Input */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="message">
                         <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
                         Message
                         </SparklesText>
                         </Label>
                       <div className="relative rounded-md mt-2">
                         <Input 
-                        //   className={`min-h-32 w-full rounded-md border px-3 py-2 text-foreground resize-none`}
                           id="message" 
                           placeholder="Enter your message..."
                           value={formData.message}
@@ -198,24 +395,114 @@ function Send() {
                         <span className="text-sm text-red-500">{errors.message}</span>
                       )}
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="phoneNumber">
-                        <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
-                        Phone Number
-                        </SparklesText>
-                      </Label>
-                      <Input 
-                        id="phoneNumber" 
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        value={formData.phoneNumber}
-                        onChange={handleInputChange('phoneNumber')}
-                        className={errors.phoneNumber ? 'border-red-500 mt-2' : 'mt-2'}
-                      />
-                      {errors.phoneNumber && (
-                        <span className="text-sm text-red-500">{errors.phoneNumber}</span>
-                      )}
-                    </div>
+
+                    {/* Conditional Input Fields */}
+                    {formData.messageService === 'sms' && (
+                      <div className="grid gap-2">
+                        <Label htmlFor="phoneNumber">
+                          <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
+                          Phone Number
+                          </SparklesText>
+                        </Label>
+                        <Input 
+                          id="phoneNumber" 
+                          type="tel"
+                          placeholder="+1 (555) 123-4567"
+                          value={formData.phoneNumber}
+                          onChange={handleInputChange('phoneNumber')}
+                          className={errors.phoneNumber ? 'border-red-500 mt-2' : 'mt-2'}
+                        />
+                        {errors.phoneNumber && (
+                          <span className="text-sm text-red-500">{errors.phoneNumber}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {formData.messageService === 'telegram' && (
+                      <>
+                        <div className="grid gap-2">
+                          <Label htmlFor="telegramUsername">
+                            <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
+                            Telegram Username
+                            </SparklesText>
+                          </Label>
+                          <Input 
+                            id="telegramUsername" 
+                            type="text"
+                            placeholder="@username or username"
+                            value={formData.telegramUsername}
+                            onChange={handleInputChange('telegramUsername')}
+                            className={errors.telegramUsername ? 'border-red-500 mt-2' : 'mt-2'}
+                          />
+                          {errors.telegramUsername && (
+                            <span className="text-sm text-red-500">{errors.telegramUsername}</span>
+                          )}
+                        </div>
+
+                        {/* Envelope Options */}
+                        <div className="grid gap-2">
+                          <Label htmlFor="useEnvelope">
+                            <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
+                            Envelope Settings
+                            </SparklesText>
+                          </Label>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <input
+                              type="checkbox"
+                              id="useEnvelope"
+                              checked={formData.useEnvelope}
+                              onChange={handleInputChange('useEnvelope')}
+                              className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                            />
+                            <label htmlFor="useEnvelope" className="text-sm font-medium text-foreground cursor-pointer">
+                              Use envelope (prompts recipient before showing message)
+                            </label>
+                          </div>
+                        </div>
+
+                        {formData.useEnvelope && (
+                          <>
+                            <div className="grid gap-2">
+                              <Label htmlFor="senderHandle">
+                                <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
+                                Your Handle (Optional)
+                                </SparklesText>
+                              </Label>
+                              <Input 
+                                id="senderHandle" 
+                                type="text"
+                                placeholder="your_username"
+                                value={formData.senderHandle}
+                                onChange={handleInputChange('senderHandle')}
+                                className="mt-2"
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                Your identifier that will be shown to the recipient
+                              </span>
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label htmlFor="promptText">
+                                <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
+                                Custom Prompt (Optional)
+                                </SparklesText>
+                              </Label>
+                              <Input 
+                                id="promptText" 
+                                type="text"
+                                placeholder="Do you want to receive this message?"
+                                value={formData.promptText}
+                                onChange={handleInputChange('promptText')}
+                                className="mt-2"
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                Custom prompt text shown to recipient before revealing the message
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
                   </div>
                 </form>
               </CardContent>
@@ -228,7 +515,10 @@ function Send() {
                     type="submit"
                   >
                     <SparklesText className="text-foreground text-lg font-medium" sparklesCount={3}>
-                      {isSubmitting ? 'Sending...' : 'Send'}
+                      {isSubmitting 
+                        ? (formData.messageService === 'sms' ? 'Sending SMS...' : 'Sending Telegram...') 
+                        : (formData.messageService === 'sms' ? 'Send SMS' : 'Send Telegram')
+                      }
                     </SparklesText>
                   </InteractiveHoverButton>
                   
