@@ -95,7 +95,7 @@ function RouteComponent() {
                     if (profile) {
                         setUser(profile)
                         setAuthProvider('google')
-                        // Automatically redirect to dashboard if already authenticated
+                        // Automatically redirect to dashboard if already authenticate
                         navigate({ to: '/dashboard' })
                         return
                     }
