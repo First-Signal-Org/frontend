@@ -95,6 +95,9 @@ function RouteComponent() {
                     if (profile) {
                         setUser(profile)
                         setAuthProvider('google')
+                        // Automatically redirect to dashboard if already authenticated
+                        navigate({ to: '/dashboard' })
+                        return
                     }
                 }
             } catch (error) {
@@ -110,13 +113,16 @@ function RouteComponent() {
                     if (githubUser) {
                         setUser(githubUser)
                         setAuthProvider('github')
+                        // Automatically redirect to dashboard if already authenticated
+                        navigate({ to: '/dashboard' })
+                        return
                     }
                 }
             } catch (error) {
                 console.warn('Error checking stored GitHub auth:', error)
             }
         }
-    }, [googleAuthService])
+    }, [googleAuthService, githubAuthService, navigate])
 
     const handleGoogleLogin = async () => {
         if (!googleAuthService) {
@@ -149,10 +155,8 @@ function RouteComponent() {
                     console.warn('Backend integration warning:', result.error)
                 }
 
-                // Navigate to dashboard after successful login
-                setTimeout(() => {
-                    navigate({ to: '/dashboard' })
-                }, 1500)
+                // Navigate to dashboard immediately after successful login
+                navigate({ to: '/dashboard' })
                 
             } else {
                 setError(result.error || 'Google authentication failed')
@@ -196,10 +200,8 @@ function RouteComponent() {
                     console.warn('Backend integration warning:', result.error)
                 }
 
-                // Navigate to dashboard after successful login
-                setTimeout(() => {
-                    navigate({ to: '/dashboard' })
-                }, 1500)
+                // Navigate to dashboard immediately after successful login
+                navigate({ to: '/dashboard' })
                 
             } else {
                 setError(result.error || 'GitHub authentication failed')
