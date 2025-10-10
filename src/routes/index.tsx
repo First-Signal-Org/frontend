@@ -54,7 +54,7 @@ function App() {
           Ever had a crush but were too afraid to confess?
         </p>
       </div>
-      <button className='bg-primary hover:bg-primary/80 transition-colors duration-200 text-white font-semibold px-6 py-3 rounded-lg shadow-md' onClick={() => navigate({ to: '/login' })}>
+      <button className='bg-primary hover:bg-primary/80 transition-colors duration-200 text-white font-semibold px-6 py-3 rounded-lg shadow-md' onClick={() => navigate({ to: '/send' })}>
         Click here
       </button>
     </div>

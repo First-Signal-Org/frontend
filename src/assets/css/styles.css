@@ -67,7 +67,20 @@ body, button, input, select, textarea {
   100% {
     background-position: 100% -100%;
     }
-  }}
+  }
+  
+  @keyframes pulse-sweep {
+  0% {
+    transform: translateX(-150%);
+    }
+  33% {
+    transform: translateX(250%);
+    }
+  100% {
+    transform: translateX(400%);
+    }
+  }
+}
 
 @layer base {
   * {
