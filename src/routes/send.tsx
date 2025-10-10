@@ -1,15 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { NeonGradientCard } from '@/components/ui/neon-gradient-card'
 import { MagicCard } from '@/components/ui/magic-card'
 import { CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { BorderBeam } from '@/components/ui/border-beam'
 import { SparklesText } from '@/components/ui/sparkles-text'
-import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button'
 import { ComicText } from '@/components/ui/comic-text'
-import { WarpBackground } from '@/components/ui/warp-background'
 import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/send')({
