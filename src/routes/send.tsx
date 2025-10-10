@@ -473,7 +473,7 @@ function Send() {
                               />
                             </div>
 
-                            <div className="grid gap-2">
+                            {/* <div className="grid gap-2">
                               <Label htmlFor="promptText">
                                 <SparklesText className="text-foreground text-lg font-medium" sparklesCount={0}>
                                 Custom Prompt (Optional)
@@ -487,7 +487,7 @@ function Send() {
                                 onChange={handleInputChange('promptText')}
                                 className="mt-2 py-6"
                               />
-                            </div>
+                            </div> */}
                           
                       </>
                     )}
@@ -552,13 +552,13 @@ function Send() {
         <div className="absolute bottom-56 right-64 rotate-10">
         <img src="/doraemon.png" alt="Doraemon" className="w-18 object-cover" />
         </div>
-        <div className="absolute p-2 z-200 bg-primary rounded-sm text-white font-bold text-sm bottom-24 right-152 rotate-10 overflow-hidden">
+        <div className="absolute p-2 z-200 bg-primary rounded-sm text-white font-bold text-sm bottom-20 right-152 rotate-10 overflow-hidden">
         <div className="relative">
           <span className="relative z-10">Spill your feelings</span>
           <div className="absolute inset-0 w-18 h-48 translate-y-[-50%] bg-black transform -translate-x-full animate-[pulse-sweep_3s_linear_infinite] delay-0"></div>
         </div>
         </div>
-        <div className="absolute p-2 z-200 bg-primary rounded-sm text-white font-bold text-sm bottom-24 left-152 rotate-[-10deg] overflow-hidden">
+        <div className="absolute p-2 z-200 bg-primary rounded-sm text-white font-bold text-sm bottom-20 left-152 rotate-[-10deg] overflow-hidden">
         <div className="relative">
           <span className="relative z-10">Keep your cool</span>
           <div className="absolute inset-0 w-18 h-48 translate-y-[-50%] bg-black transform -translate-x-full animate-[pulse-sweep_3s_linear_infinite] delay-2000"></div>
